@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -7,233 +8,852 @@
     <style>
         /* --- CSS VARIABLES --- */
         :root {
-            --bg-main: #0a0a0c; 
-            --bg-panel: #18181a; 
-            --accent-green: #4CAF50; 
+            --bg-main: #0a0a0c;
+            --bg-panel: #18181a;
+            --accent-green: #4CAF50;
             --led-red: #ff3333;
             --text-light: #f0f0f0;
             --text-dim: #999999;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
         /* Prevent pull-to-refresh and selection on tablets */
-        body { 
-            background-color: var(--bg-main); color: var(--text-light); height: 100vh; 
-            display: flex; flex-direction: column; overflow: hidden; 
-            user-select: none; -webkit-user-select: none; touch-action: none;
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-light);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
         }
 
         /* --- TOP BAR --- */
         .top-bar {
-            background-color: var(--bg-panel); padding: 15px 20px; display: flex; align-items: center;
-            justify-content: space-between; border-bottom: 2px solid #000; box-shadow: 0 5px 15px rgba(0,0,0,0.8); z-index: 20;
+            background-color: var(--bg-panel);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid #000;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.8);
+            z-index: 20;
         }
-        .preset-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        select.preset-dropdown { background-color: #222; color: #fff; border: 1px solid #444; padding: 10px 12px; border-radius: 4px; font-weight: 600; font-size: 14px;}
-        button.btn-preset { background: linear-gradient(to bottom, #444, #222); color: #fff; border: 1px solid #111; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 14px;}
-        button.btn-preset:active { transform: translateY(2px); }
-        .btn-rename { background: linear-gradient(to bottom, #3a5a80, #1c3654); }
-        .btn-delete { background: linear-gradient(to bottom, #803a3a, #541c1c); }
+
+        .preset-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        select.preset-dropdown {
+            background-color: #222;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 10px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        button.btn-preset {
+            background: linear-gradient(to bottom, #444, #222);
+            color: #fff;
+            border: 1px solid #111;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        button.btn-preset:active {
+            transform: translateY(2px);
+        }
+
+        .btn-rename {
+            background: linear-gradient(to bottom, #3a5a80, #1c3654);
+        }
+
+        .btn-delete {
+            background: linear-gradient(to bottom, #803a3a, #541c1c);
+        }
 
         /* =========================================
            CANVAS ENGINE
            ========================================= */
         .canvas-viewport {
-            flex: 1; position: relative; overflow: hidden; 
-            background: #0d0d11; 
-            background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #0d0d11;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
             background-size: 50px 50px;
-            cursor: default; touch-action: none; /* Crucial for custom pinch/pan */
+            cursor: default;
+            touch-action: none;
+            /* Crucial for custom pinch/pan */
         }
-        
+
         .canvas-surface {
-            position: absolute; top: 0; left: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
             transform-origin: 0 0;
-            pointer-events: none; 
+            pointer-events: none;
         }
 
         .board-case {
-            position: absolute; top: -50px; left: -50px;
+            position: absolute;
+            top: -50px;
+            left: -50px;
             background: repeating-linear-gradient(to bottom, #111 0px, #111 45px, #050505 45px, #050505 60px);
-            border: 5px solid #222; border-radius: 12px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.9), inset 0 10px 20px rgba(0,0,0,0.5);
-            pointer-events: auto; transition: width 0.3s, height 0.3s;
-            display: none; 
+            border: 5px solid #222;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), inset 0 10px 20px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+            transition: width 0.3s, height 0.3s;
+            display: none;
         }
 
         /* --- SVG WIRES --- */
-        #wire-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 1; }
-        .wire-path { fill: none; stroke: #222; stroke-width: 14; stroke-linecap: round; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); transition: stroke 0.2s, stroke-width 0.2s;}
-        .wire-path:hover, .wire-path:active { stroke: #ff3333; cursor: pointer; pointer-events: auto; stroke-width: 20; opacity: 0.9;}
-        .wire-path-inner { fill: none; stroke: #555; stroke-width: 6; stroke-linecap: round; pointer-events: none;}
-        
-        .wire-temp { fill: none; stroke: var(--accent-green); stroke-width: 8; stroke-dasharray: 10; animation: dash 1s linear infinite; pointer-events: none;}
-        @keyframes dash { to { stroke-dashoffset: -20; } }
+        #wire-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .wire-path {
+            fill: none;
+            stroke: #222;
+            stroke-width: 14;
+            stroke-linecap: round;
+            filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.5));
+            transition: stroke 0.2s, stroke-width 0.2s;
+        }
+
+        .wire-path:hover,
+        .wire-path:active {
+            stroke: #ff3333;
+            cursor: pointer;
+            pointer-events: auto;
+            stroke-width: 20;
+            opacity: 0.9;
+        }
+
+        .wire-path-inner {
+            fill: none;
+            stroke: #555;
+            stroke-width: 6;
+            stroke-linecap: round;
+            pointer-events: none;
+        }
+
+        .wire-temp {
+            fill: none;
+            stroke: var(--accent-green);
+            stroke-width: 8;
+            stroke-dasharray: 10;
+            animation: dash 1s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -20;
+            }
+        }
 
         /* =========================================
            3D PEDAL CARDS
            ========================================= */
         .pedal-card {
-            width: 220px; height: 350px; border-radius: 8px; display: flex; flex-direction: column;
-            position: absolute; 
-            background: linear-gradient(145deg, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0.6) 100%), var(--pedal-color, #333);
-            box-shadow: inset 2px 2px 4px rgba(255,255,255,0.2), inset -3px -3px 6px rgba(0,0,0,0.5), 10px 20px 30px rgba(0,0,0,0.9);
-            border: 1px solid #111; z-index: 2; pointer-events: auto;
+            width: 220px;
+            height: 350px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.6) 100%), var(--pedal-color, #333);
+            box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.2), inset -3px -3px 6px rgba(0, 0, 0, 0.5), 10px 20px 30px rgba(0, 0, 0, 0.9);
+            border: 1px solid #111;
+            z-index: 2;
+            pointer-events: auto;
         }
-        .pedal-card.dragging { z-index: 100; opacity: 0.9; box-shadow: 0 30px 50px rgba(0,0,0,0.9); cursor: grabbing !important;}
 
-        .pedal-card[data-type="amp"], .pedal-card[data-type="cab"] { border-radius: 4px; border: 4px solid var(--pedal-color); background: #111; box-shadow: inset 0 0 20px rgba(0,0,0,0.9), 10px 20px 30px rgba(0,0,0,0.9); }
-        .amp-panel { background: linear-gradient(to bottom, #d4af37, #aa8529); padding: 10px; border-bottom: 3px solid #000; box-shadow: inset 0 2px 5px rgba(255,255,255,0.5); display: flex; flex-direction: column; border-radius: 2px 2px 0 0; }
-        .amp-grill { flex: 1; background: repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 4px, #0a0a0a 4px, #0a0a0a 8px); box-shadow: inset 0 0 30px rgba(0,0,0,1); display: flex; align-items: center; justify-content: center; }
-        .cab-logo { background: #fff; color: #000; padding: 2px 8px; font-weight: bold; font-style: italic; font-size: 12px; border-radius: 2px; box-shadow: 1px 2px 5px rgba(0,0,0,0.8); }
+        .pedal-card.dragging {
+            z-index: 100;
+            opacity: 0.9;
+            box-shadow: 0 30px 50px rgba(0, 0, 0, 0.9);
+            cursor: grabbing !important;
+        }
+
+        .pedal-card[data-type="amp"],
+        .pedal-card[data-type="cab"] {
+            border-radius: 4px;
+            border: 4px solid var(--pedal-color);
+            background: #111;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9), 10px 20px 30px rgba(0, 0, 0, 0.9);
+        }
+
+        .amp-panel {
+            background: linear-gradient(to bottom, #d4af37, #aa8529);
+            padding: 10px;
+            border-bottom: 3px solid #000;
+            box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.5);
+            display: flex;
+            flex-direction: column;
+            border-radius: 2px 2px 0 0;
+        }
+
+        .amp-grill {
+            flex: 1;
+            background: repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 4px, #0a0a0a 4px, #0a0a0a 8px);
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cab-logo {
+            background: #fff;
+            color: #000;
+            padding: 2px 8px;
+            font-weight: bold;
+            font-style: italic;
+            font-size: 12px;
+            border-radius: 2px;
+            box-shadow: 1px 2px 5px rgba(0, 0, 0, 0.8);
+        }
 
         /* --- CONNECTORS (Larger hitboxes for touch) --- */
         .jack-hitbox {
-            position: absolute; top: 50%; transform: translateY(-50%);
-            width: 40px; height: 50px; background: transparent; z-index: 6; cursor: crosshair;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 50px;
+            background: transparent;
+            z-index: 6;
+            cursor: crosshair;
         }
-        .jack-hitbox.left { left: -20px; }
-        .jack-hitbox.right { right: -20px; }
+
+        .jack-hitbox.left {
+            left: -20px;
+        }
+
+        .jack-hitbox.right {
+            right: -20px;
+        }
 
         .jack {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 16px; height: 28px; background: #888; border: 1px solid #222;
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.8), 2px 0 5px rgba(0,0,0,0.5);
-            border-radius: 3px; transition: 0.2s; display: flex; align-items: center; justify-content: center;
-            pointer-events: none; /* Let hitbox handle events */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 28px;
+            background: #888;
+            border: 1px solid #222;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.8), 2px 0 5px rgba(0, 0, 0, 0.5);
+            border-radius: 3px;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            /* Let hitbox handle events */
         }
-        .jack-hitbox.left .jack { border-radius: 4px 0 0 4px; }
-        .jack-hitbox.right .jack { border-radius: 0 4px 4px 0; }
-        
-        .jack-core { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 14px; background: #111; border-radius: 2px; transition: 0.2s; }
-        
-        .jack-hitbox:hover .jack { background: #444; transform: translate(-50%, -50%) scale(1.2); box-shadow: 0 0 10px var(--accent-green); border-color: var(--accent-green);}
-        .jack-hitbox:active .jack { background: #444; transform: translate(-50%, -50%) scale(1.2); box-shadow: 0 0 10px var(--accent-green); border-color: var(--accent-green);}
-        .jack-hitbox:hover .jack-core, .jack-hitbox:active .jack-core { opacity: 0; }
 
-        .jack.disconnected { border-color: #ff3333; box-shadow: 0 0 8px rgba(255,51,51,0.5); }
-        .jack.connected { border-color: var(--accent-green); box-shadow: 0 0 8px rgba(76,175,80,0.5); }
+        .jack-hitbox.left .jack {
+            border-radius: 4px 0 0 4px;
+        }
 
-        .jack::before { content: '+'; position: absolute; color: var(--accent-green); font-size: 24px; font-weight: bold; opacity: 0; transition: 0.2s; text-shadow: 0 0 5px #000; z-index: 10; pointer-events: none; }
-        .jack-hitbox:hover .jack::before, .jack-hitbox:active .jack::before { opacity: 1; }
+        .jack-hitbox.right .jack {
+            border-radius: 0 4px 4px 0;
+        }
+
+        .jack-core {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px;
+            height: 14px;
+            background: #111;
+            border-radius: 2px;
+            transition: 0.2s;
+        }
+
+        .jack-hitbox:hover .jack {
+            background: #444;
+            transform: translate(-50%, -50%) scale(1.2);
+            box-shadow: 0 0 10px var(--accent-green);
+            border-color: var(--accent-green);
+        }
+
+        .jack-hitbox:active .jack {
+            background: #444;
+            transform: translate(-50%, -50%) scale(1.2);
+            box-shadow: 0 0 10px var(--accent-green);
+            border-color: var(--accent-green);
+        }
+
+        .jack-hitbox:hover .jack-core,
+        .jack-hitbox:active .jack-core {
+            opacity: 0;
+        }
+
+        .jack.disconnected {
+            border-color: #ff3333;
+            box-shadow: 0 0 8px rgba(255, 51, 51, 0.5);
+        }
+
+        .jack.connected {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+        }
+
+        .jack::before {
+            content: '+';
+            position: absolute;
+            color: var(--accent-green);
+            font-size: 24px;
+            font-weight: bold;
+            opacity: 0;
+            transition: 0.2s;
+            text-shadow: 0 0 5px #000;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .jack-hitbox:hover .jack::before,
+        .jack-hitbox:active .jack::before {
+            opacity: 1;
+        }
 
         .jack::after {
-            position: absolute; top: -10px; opacity: 0; transition: 0.2s;
-            background: rgba(0,0,0,0.9); color: #fff; padding: 6px 10px; border-radius: 4px;
-            font-size: 13px; font-weight: bold; white-space: nowrap; pointer-events: none;
-            border: 1px solid #444; box-shadow: 0 4px 6px rgba(0,0,0,0.5); z-index: 20;
+            position: absolute;
+            top: -10px;
+            opacity: 0;
+            transition: 0.2s;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            white-space: nowrap;
+            pointer-events: none;
+            border: 1px solid #444;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            z-index: 20;
         }
-        .jack-hitbox.left .jack::after { content: 'IN (Tap to Del)'; left: -20px; }
-        .jack-hitbox.right .jack::after { content: 'OUT (Drag)'; right: -20px; }
-        .jack-hitbox:hover .jack::after, .jack-hitbox:active .jack::after { opacity: 1; top: -40px; }
+
+        .jack-hitbox.left .jack::after {
+            content: 'IN (Tap to Del)';
+            left: -20px;
+        }
+
+        .jack-hitbox.right .jack::after {
+            content: 'OUT (Drag)';
+            right: -20px;
+        }
+
+        .jack-hitbox:hover .jack::after,
+        .jack-hitbox:active .jack::after {
+            opacity: 1;
+            top: -40px;
+        }
 
         /* --- CARD HEADER --- */
-        .card-header { padding: 15px; display: flex; align-items: center; justify-content: space-between; position: relative; width: 100%; z-index: 10; cursor: grab;}
-        .card-header:active { cursor: grabbing; }
-        .pedal-title { font-weight: 700; font-size: 15px; flex-grow: 1; text-shadow: 1px 2px 2px rgba(0,0,0,0.8); color: #fff; text-align: center; pointer-events: none;}
-        .btn-close { background: none; border: none; color: rgba(255,255,255,0.5); font-size: 26px; cursor: pointer; text-shadow: 1px 1px 2px #000; z-index: 15; padding: 5px; line-height: 1;}
-        .btn-close:hover, .btn-close:active { color: #ff5555; }
-        .led-container { position: absolute; top: 18px; left: 15px; z-index: 10; pointer-events: none;}
-        .pedal-led { width: 14px; height: 14px; border-radius: 50%; background: #440000; border: 1px solid #111; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); transition: 0.1s; }
-        .pedal-card.active .pedal-led { background: var(--led-red); box-shadow: 0 0 10px var(--led-red), 0 0 20px var(--led-red); }
+        .card-header {
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            width: 100%;
+            z-index: 10;
+            cursor: grab;
+        }
+
+        .card-header:active {
+            cursor: grabbing;
+        }
+
+        .pedal-title {
+            font-weight: 700;
+            font-size: 15px;
+            flex-grow: 1;
+            text-shadow: 1px 2px 2px rgba(0, 0, 0, 0.8);
+            color: #fff;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 26px;
+            cursor: pointer;
+            text-shadow: 1px 1px 2px #000;
+            z-index: 15;
+            padding: 5px;
+            line-height: 1;
+        }
+
+        .btn-close:hover,
+        .btn-close:active {
+            color: #ff5555;
+        }
+
+        .led-container {
+            position: absolute;
+            top: 18px;
+            left: 15px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .pedal-led {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #440000;
+            border: 1px solid #111;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+            transition: 0.1s;
+        }
+
+        .pedal-card.active .pedal-led {
+            background: var(--led-red);
+            box-shadow: 0 0 10px var(--led-red), 0 0 20px var(--led-red);
+        }
 
         /* --- CARD BODY & KNOBS --- */
-        .card-body { flex: 1; padding: 15px; display: flex; flex-wrap: wrap; justify-content: space-around; align-content: flex-start; gap: 10px; z-index: 5;}
-        .knob-container { display: flex; flex-direction: column; align-items: center; width: 60px; margin-bottom: 10px; position: relative; }
-        .knob-base { width: 50px; height: 50px; border-radius: 50%; background: #111; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 10px rgba(0,0,0,0.6); }
-        .knob {
-            width: 42px; height: 42px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #e0e0e0, #888); 
-            border: 1px solid #333; position: relative; cursor: ns-resize; transform: rotate(var(--rotation, -135deg)); 
-            box-shadow: inset -2px -2px 5px rgba(0,0,0,0.4), inset 2px 2px 5px rgba(255,255,255,0.9); z-index: 10;
+        .card-body {
+            flex: 1;
+            padding: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            align-content: flex-start;
+            gap: 10px;
+            z-index: 5;
         }
-        .knob::after { content: ''; position: absolute; top: 3px; left: 50%; width: 3px; height: 14px; background-color: #111; transform: translateX(-50%); border-radius: 2px;}
-        .knob-label { font-size: 12px; color: #fff; margin-top: 8px; font-weight: bold; text-transform: uppercase; text-shadow: 1px 1px 3px #000; }
-        .knob-value { font-size: 14px; color: var(--accent-green); margin-top: 2px; text-shadow: 0 0 5px var(--accent-green); display: none; font-weight: bold;}
-        .knob-container:hover .knob-value, .knob-container:active .knob-value { display: block; position: absolute; bottom: -20px; z-index: 20; background: rgba(0,0,0,0.9); padding: 4px 8px; border-radius: 4px; border: 1px solid #333;}
+
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 60px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .knob-base {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.6);
+        }
+
+        .knob {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #e0e0e0, #888);
+            border: 1px solid #333;
+            position: relative;
+            cursor: ns-resize;
+            transform: rotate(var(--rotation, -135deg));
+            box-shadow: inset -2px -2px 5px rgba(0, 0, 0, 0.4), inset 2px 2px 5px rgba(255, 255, 255, 0.9);
+            z-index: 10;
+        }
+
+        .knob::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 50%;
+            width: 3px;
+            height: 14px;
+            background-color: #111;
+            transform: translateX(-50%);
+            border-radius: 2px;
+        }
+
+        .knob-label {
+            font-size: 12px;
+            color: #fff;
+            margin-top: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 3px #000;
+        }
+
+        .knob-value {
+            font-size: 14px;
+            color: var(--accent-green);
+            margin-top: 2px;
+            text-shadow: 0 0 5px var(--accent-green);
+            display: none;
+            font-weight: bold;
+        }
+
+        .knob-container:hover .knob-value,
+        .knob-container:active .knob-value {
+            display: block;
+            position: absolute;
+            bottom: -20px;
+            z-index: 20;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
 
         /* --- 3D FOOTSWITCH --- */
-        .card-footer { padding: 15px; display: flex; justify-content: center; align-items: flex-end; height: 80px; z-index: 10;}
-        .footswitch-btn {
-            width: 40px; height: 40px; border-radius: 50%; cursor: pointer; border: none; background: radial-gradient(circle at 40% 40%, #e6e6e6, #999, #333); 
-            box-shadow: 0 6px 8px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,255,255,0.9), inset 0 -2px 4px rgba(0,0,0,0.5); transition: transform 0.1s, box-shadow 0.1s; position: relative;
+        .card-footer {
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            height: 80px;
+            z-index: 10;
         }
-        .footswitch-btn::before { content: ''; position: absolute; top: -6px; left: -6px; right: -6px; bottom: -6px; border-radius: 50%; border: 2px solid #555; z-index: -1; background: repeating-conic-gradient(#555 0% 10%, #333 10% 20%); }
-        .footswitch-btn:active { transform: translateY(4px); box-shadow: 0 2px 4px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,255,255,0.9); }
+
+        .footswitch-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            background: radial-gradient(circle at 40% 40%, #e6e6e6, #999, #333);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.7), inset 0 2px 4px rgba(255, 255, 255, 0.9), inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+            position: relative;
+        }
+
+        .footswitch-btn::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            right: -6px;
+            bottom: -6px;
+            border-radius: 50%;
+            border: 2px solid #555;
+            z-index: -1;
+            background: repeating-conic-gradient(#555 0% 10%, #333 10% 20%);
+        }
+
+        .footswitch-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.7), inset 0 2px 4px rgba(255, 255, 255, 0.9);
+        }
 
         /* =========================================
            BOTTOM LIBRARY UI & FAB
            ========================================= */
-        .library-dock { 
-            background-color: var(--bg-panel); height: 280px; border-top: 2px solid #000; 
-            display: flex; flex-direction: column; box-shadow: 0 -10px 30px rgba(0,0,0,0.8); z-index: 40;
-            position: absolute; bottom: 0; left: 0; width: 100%;
-            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        .library-dock {
+            background-color: var(--bg-panel);
+            height: 280px;
+            border-top: 2px solid #000;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.8);
+            z-index: 40;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-        .library-dock.show { transform: translateY(0); }
-        
-        .library-tabs { display: flex; background-color: #0a0a0c; padding: 0 20px; overflow-x: auto; border-bottom: 1px solid #222; align-items: center;}
-        .tab-btn { background: none; border: none; color: var(--text-dim); padding: 15px 20px; cursor: pointer; font-size: 15px; font-weight: 600; border-bottom: 2px solid transparent; white-space: nowrap;}
-        .tab-btn:hover, .tab-btn:active { color: var(--text-light); }
-        .tab-btn.active { color: var(--accent-green); border-bottom-color: var(--accent-green); }
-        
-        .case-selector { margin-left: auto; display: flex; align-items: center; gap: 10px; padding-left: 20px;}
-        .case-selector select { background: #222; color: #fff; border: 1px solid #555; padding: 8px 12px; border-radius: 4px; font-size: 14px;}
 
-        .library-scroll { flex: 1; padding: 20px; overflow-x: auto; display: flex; gap: 20px; scrollbar-width: thin; scrollbar-color: #444 var(--bg-panel); align-items: center;}
+        .library-dock.show {
+            transform: translateY(0);
+        }
+
+        .library-tabs {
+            display: flex;
+            background-color: #0a0a0c;
+            padding: 0 20px;
+            overflow-x: auto;
+            border-bottom: 1px solid #222;
+            align-items: center;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            padding: 15px 20px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover,
+        .tab-btn:active {
+            color: var(--text-light);
+        }
+
+        .tab-btn.active {
+            color: var(--accent-green);
+            border-bottom-color: var(--accent-green);
+        }
+
+        .case-selector {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-left: 20px;
+        }
+
+        .case-selector select {
+            background: #222;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .library-scroll {
+            flex: 1;
+            padding: 20px;
+            overflow-x: auto;
+            display: flex;
+            gap: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: #444 var(--bg-panel);
+            align-items: center;
+        }
+
         .library-item {
-            width: 140px; height: 180px; background-color: #222; border-radius: 8px; padding: 10px; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4); border: 1px solid #333; flex-shrink: 0; transition: transform 0.2s, background 0.2s;
+            width: 140px;
+            height: 180px;
+            background-color: #222;
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            border: 1px solid #333;
+            flex-shrink: 0;
+            transition: transform 0.2s, background 0.2s;
         }
-        .library-item:active { transform: scale(0.95); background-color: #2a2a2d; border-color: var(--accent-green);}
-        .library-item-name { font-size: 14px; font-weight: bold; text-align: center; color: #fff; }
 
-        .lib-graphic { height: 75px; display: flex; align-items: center; justify-content: center; }
-        .mini-stomp { width: 45px; height: 65px; border-radius: 4px; position: relative; background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(0,0,0,0.5)), var(--pedal-color); box-shadow: 2px 4px 6px rgba(0,0,0,0.6), inset 1px 1px 2px rgba(255,255,255,0.3); }
-        .mini-stomp::after { content: ''; position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle, #ddd, #555); }
-        .mini-stomp::before { content: ''; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 24px; height: 8px; background: radial-gradient(circle at 6px 4px, #fff 1.5px, transparent 2px), radial-gradient(circle at 18px 4px, #fff 1.5px, transparent 2px); background-color: transparent; }
-        .mini-amp { width: 70px; height: 40px; border-radius: 3px; background: #111; border: 2px solid var(--pedal-color); box-shadow: 2px 4px 6px rgba(0,0,0,0.6); display: flex; flex-direction: column; overflow: hidden; }
-        .mini-amp-panel { height: 14px; background: linear-gradient(to bottom, #d4af37, #8c6a18); border-bottom: 1px solid #000; }
-        .mini-amp-grill { flex: 1; background: repeating-linear-gradient(45deg, #222, #222 2px, #000 2px, #000 4px); }
-        .mini-cab { width: 60px; height: 60px; border-radius: 2px; border: 3px solid var(--pedal-color); background: repeating-linear-gradient(45deg, #111, #111 3px, #222 3px, #222 6px); box-shadow: 2px 4px 6px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; }
-        .mini-cab::after { content: ''; width: 20px; height: 5px; background: #fff; border-radius: 2px; }
+        .library-item:active {
+            transform: scale(0.95);
+            background-color: #2a2a2d;
+            border-color: var(--accent-green);
+        }
+
+        .library-item-name {
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            color: #fff;
+        }
+
+        .lib-graphic {
+            height: 75px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mini-stomp {
+            width: 45px;
+            height: 65px;
+            border-radius: 4px;
+            position: relative;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.5)), var(--pedal-color);
+            box-shadow: 2px 4px 6px rgba(0, 0, 0, 0.6), inset 1px 1px 2px rgba(255, 255, 255, 0.3);
+        }
+
+        .mini-stomp::after {
+            content: '';
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #ddd, #555);
+        }
+
+        .mini-stomp::before {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 24px;
+            height: 8px;
+            background: radial-gradient(circle at 6px 4px, #fff 1.5px, transparent 2px), radial-gradient(circle at 18px 4px, #fff 1.5px, transparent 2px);
+            background-color: transparent;
+        }
+
+        .mini-amp {
+            width: 70px;
+            height: 40px;
+            border-radius: 3px;
+            background: #111;
+            border: 2px solid var(--pedal-color);
+            box-shadow: 2px 4px 6px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .mini-amp-panel {
+            height: 14px;
+            background: linear-gradient(to bottom, #d4af37, #8c6a18);
+            border-bottom: 1px solid #000;
+        }
+
+        .mini-amp-grill {
+            flex: 1;
+            background: repeating-linear-gradient(45deg, #222, #222 2px, #000 2px, #000 4px);
+        }
+
+        .mini-cab {
+            width: 60px;
+            height: 60px;
+            border-radius: 2px;
+            border: 3px solid var(--pedal-color);
+            background: repeating-linear-gradient(45deg, #111, #111 3px, #222 3px, #222 6px);
+            box-shadow: 2px 4px 6px rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mini-cab::after {
+            content: '';
+            width: 20px;
+            height: 5px;
+            background: #fff;
+            border-radius: 2px;
+        }
 
         /* --- FLOATING ADD BUTTON --- */
         .fab-add-btn {
-            position: absolute; bottom: 30px; right: 30px; width: 65px; height: 65px;
-            border-radius: 50%; background: var(--accent-green); color: #fff; border: none;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.8); cursor: pointer; z-index: 50;
-            display: flex; align-items: center; justify-content: center; font-size: 36px;
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            color: #fff;
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.8);
+            cursor: pointer;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
             transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.3s;
         }
-        .fab-add-btn:active { transform: scale(0.9); }
-        .fab-add-btn.open { transform: rotate(45deg); background: #ff3333; }
+
+        .fab-add-btn:active {
+            transform: scale(0.9);
+        }
+
+        .fab-add-btn.open {
+            transform: rotate(45deg);
+            background: #ff3333;
+        }
 
         /* --- FLOATING PRESETS & GLOBAL IO --- */
         .floating-preset-bar {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(18, 18, 20, 0.9); backdrop-filter: blur(10px);
-            border: 1px solid #333; border-radius: 12px; padding: 10px 15px;
-            display: flex; align-items: center; gap: 10px; z-index: 100;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(18, 18, 20, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
         }
-        .preset-label { color: var(--text-dim); font-size: 11px; font-weight: 800; letter-spacing: 1px; margin-right: 5px; }
+
+        .preset-label {
+            color: var(--text-dim);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            margin-right: 5px;
+        }
+
         .preset-btn {
-            width: 40px; height: 40px; border-radius: 8px; background: #222; border: 2px solid #333;
-            color: var(--text-dim); font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s;
-            display: flex; align-items: center; justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: #222;
+            border: 2px solid #333;
+            color: var(--text-dim);
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .preset-btn:hover { background: #333; color: #fff; }
+
+        .preset-btn:hover {
+            background: #333;
+            color: #fff;
+        }
+
         .preset-btn.active {
-            background: rgba(76, 175, 80, 0.2); border-color: var(--accent-green);
-            color: var(--accent-green); box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
+            background: rgba(76, 175, 80, 0.2);
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
         }
-
-        }
-
     </style>
 </head>
+
 <body>
 
     <div class="top-bar">
@@ -243,7 +863,8 @@
             <button class="btn-preset btn-rename" onclick="renameCurrentPreset()">Rename Preset</button>
             <button class="btn-preset btn-delete" onclick="resetCurrentPreset()">Clear</button>
         </div>
-        <div style="font-size: 14px; color: var(--accent-green); font-weight: bold; margin-left: auto;">ESP32 DSP: <span style="color:#fff;">LIVE SYNC</span></div>
+        <div style="font-size: 14px; color: var(--accent-green); font-weight: bold; margin-left: auto;">ESP32 DSP: <span
+                style="color:#fff;">LIVE SYNC</span></div>
     </div>
 
     <div class="floating-preset-bar">
@@ -258,7 +879,7 @@
     <div class="canvas-viewport" id="viewport">
         <div class="canvas-surface" id="surface">
             <div class="board-case" id="board-case"></div>
-            
+
             <svg id="wire-layer">
                 <g id="wires-group"></g>
                 <path class="wire-temp" id="temp-wire" d="" style="display:none;"></path>
@@ -278,7 +899,7 @@
             <button class="tab-btn" data-cat="mod">Modulation</button>
             <button class="tab-btn" data-cat="delay">Delay/Reverb</button>
             <button class="tab-btn" data-cat="amp">Amp & Cab</button>
-            
+
             <div class="case-selector">
                 <label style="color: var(--text-dim); font-size: 12px;">Board Case:</label>
                 <select id="case-size" onchange="updateCaseSize()">
@@ -295,29 +916,29 @@
     <script>
         // --- 1. DATA MODELS & LIBRARY ---
         const pedalLibraryData = [
-            { id: 'lib_gate', category: 'dynamics', type: 'stomp', name: 'Noise Gate', color: '#1a1a1a', knobs: [{label: 'Thresh', val: 50}, {label: 'Release', val: 30}] },
-            { id: 'lib_comp', category: 'dynamics', type: 'stomp', name: 'Opto Comp', color: '#1e3b5e', knobs: [{label: 'Sustain', val: 50}, {label: 'Level', val: 50}, {label: 'Attack', val: 20}] },
-            { id: 'lib_env', category: 'dynamics', type: 'stomp', name: 'Q-Filter', color: '#cccccc', knobs: [{label: 'Sens', val: 60}, {label: 'Q-Peak', val: 50}, {label: 'Decay', val: 40}] },
-            { id: 'lib_boost', category: 'drive', type: 'stomp', name: 'Katana Boost', color: '#f0f0f0', knobs: [{label: 'Volume', val: 70}] },
-            { id: 'lib_klon', category: 'drive', type: 'stomp', name: 'Mythical Drive', color: '#c5a059', knobs: [{label: 'Gain', val: 30}, {label: 'Treble', val: 60}, {label: 'Output', val: 65}] },
-            { id: 'lib_ts', category: 'drive', type: 'stomp', name: 'Valve Screamer', color: '#1e4620', knobs: [{label: 'Drive', val: 50}, {label: 'Tone', val: 50}, {label: 'Level', val: 50}] },
-            { id: 'lib_ds1', category: 'drive', type: 'stomp', name: 'Bossy Dist', color: '#b34700', knobs: [{label: 'Tone', val: 50}, {label: 'Dist', val: 70}, {label: 'Level', val: 50}] },
-            { id: 'lib_fuzz', category: 'drive', type: 'stomp', name: 'Fuzz Face', color: '#8b0000', knobs: [{label: 'Volume', val: 80}, {label: 'Fuzz', val: 100}] },
-            { id: 'lib_ce2', category: 'mod', type: 'stomp', name: 'Aqua Chorus', color: '#0b3d60', knobs: [{label: 'Rate', val: 30}, {label: 'Depth', val: 60}] },
-            { id: 'lib_phase', category: 'mod', type: 'stomp', name: 'Phase 90', color: '#d35400', knobs: [{label: 'Speed', val: 50}] },
-            { id: 'lib_aqua', category: 'delay', type: 'stomp', name: 'Analog Echo', color: '#4faccc', knobs: [{label: 'Delay', val: 20}, {label: 'F.Back', val: 30}, {label: 'Blend', val: 45}] },
-            { id: 'lib_dd', category: 'delay', type: 'stomp', name: 'Digital Delay', color: '#4a4a4a', knobs: [{label: 'Time', val: 40}, {label: 'F.Back', val: 30}, {label: 'Mix', val: 50}] },
-            { id: 'lib_rv_hall', category: 'delay', type: 'stomp', name: 'Hall Reverb', color: '#2b1b42', knobs: [{label: 'Decay', val: 60}, {label: 'Mix', val: 40}, {label: 'PreDly', val: 10}] },
-            { id: 'lib_rv_spring', category: 'delay', type: 'stomp', name: 'Spring Tank', color: '#8d6e63', knobs: [{label: 'Dwell', val: 50}, {label: 'Mix', val: 40}, {label: 'Tone', val: 60}] },
-            { id: 'lib_amp_jm', category: 'amp', type: 'amp', name: 'Silver String', color: '#8c8c8c', knobs: [{label: 'Gain', val: 30}, {label: 'Bass', val: 60}, {label: 'Mid', val: 40}, {label: 'Treble', val: 70}, {label: 'Master', val: 80}] },
-            { id: 'lib_amp_lead', category: 'amp', type: 'amp', name: 'Modern Lead', color: '#0d0d0d', knobs: [{label: 'Gain', val: 85}, {label: 'Bass', val: 60}, {label: 'Mid', val: 40}, {label: 'Treb', val: 65}, {label: 'Pres', val: 50}] },
-            { id: 'lib_cab_2x12', category: 'amp', type: 'cab', name: '2x12 Open Back', color: '#222222', knobs: [{label: 'Mic Dist', val: 30}, {label: 'High Cut', val: 70}] }
+            { id: 'lib_gate', category: 'dynamics', type: 'stomp', name: 'Noise Gate', color: '#1a1a1a', knobs: [{ label: 'Thresh', val: 50 }, { label: 'Release', val: 30 }] },
+            { id: 'lib_comp', category: 'dynamics', type: 'stomp', name: 'Opto Comp', color: '#1e3b5e', knobs: [{ label: 'Sustain', val: 50 }, { label: 'Level', val: 50 }, { label: 'Attack', val: 20 }] },
+            { id: 'lib_env', category: 'dynamics', type: 'stomp', name: 'Q-Filter', color: '#cccccc', knobs: [{ label: 'Sens', val: 60 }, { label: 'Q-Peak', val: 50 }, { label: 'Decay', val: 40 }] },
+            { id: 'lib_boost', category: 'drive', type: 'stomp', name: 'Katana Boost', color: '#f0f0f0', knobs: [{ label: 'Volume', val: 70 }] },
+            { id: 'lib_klon', category: 'drive', type: 'stomp', name: 'Mythical Drive', color: '#c5a059', knobs: [{ label: 'Gain', val: 30 }, { label: 'Treble', val: 60 }, { label: 'Output', val: 65 }] },
+            { id: 'lib_ts', category: 'drive', type: 'stomp', name: 'Valve Screamer', color: '#1e4620', knobs: [{ label: 'Drive', val: 50 }, { label: 'Tone', val: 50 }, { label: 'Level', val: 50 }] },
+            { id: 'lib_ds1', category: 'drive', type: 'stomp', name: 'Bossy Dist', color: '#b34700', knobs: [{ label: 'Tone', val: 50 }, { label: 'Dist', val: 70 }, { label: 'Level', val: 50 }] },
+            { id: 'lib_fuzz', category: 'drive', type: 'stomp', name: 'Fuzz Face', color: '#8b0000', knobs: [{ label: 'Volume', val: 80 }, { label: 'Fuzz', val: 100 }] },
+            { id: 'lib_ce2', category: 'mod', type: 'stomp', name: 'Aqua Chorus', color: '#0b3d60', knobs: [{ label: 'Rate', val: 30 }, { label: 'Depth', val: 60 }] },
+            { id: 'lib_phase', category: 'mod', type: 'stomp', name: 'Phase 90', color: '#d35400', knobs: [{ label: 'Speed', val: 50 }] },
+            { id: 'lib_aqua', category: 'delay', type: 'stomp', name: 'Analog Echo', color: '#4faccc', knobs: [{ label: 'Delay', val: 20 }, { label: 'F.Back', val: 30 }, { label: 'Blend', val: 45 }] },
+            { id: 'lib_dd', category: 'delay', type: 'stomp', name: 'Digital Delay', color: '#4a4a4a', knobs: [{ label: 'Time', val: 40 }, { label: 'F.Back', val: 30 }, { label: 'Mix', val: 50 }] },
+            { id: 'lib_rv_hall', category: 'delay', type: 'stomp', name: 'Hall Reverb', color: '#2b1b42', knobs: [{ label: 'Decay', val: 60 }, { label: 'Mix', val: 40 }, { label: 'PreDly', val: 10 }] },
+            { id: 'lib_rv_spring', category: 'delay', type: 'stomp', name: 'Spring Tank', color: '#8d6e63', knobs: [{ label: 'Dwell', val: 50 }, { label: 'Mix', val: 40 }, { label: 'Tone', val: 60 }] },
+            { id: 'lib_amp_jm', category: 'amp', type: 'amp', name: 'Silver String', color: '#8c8c8c', knobs: [{ label: 'Gain', val: 30 }, { label: 'Bass', val: 60 }, { label: 'Mid', val: 40 }, { label: 'Treble', val: 70 }, { label: 'Master', val: 80 }] },
+            { id: 'lib_amp_lead', category: 'amp', type: 'amp', name: 'Modern Lead', color: '#0d0d0d', knobs: [{ label: 'Gain', val: 85 }, { label: 'Bass', val: 60 }, { label: 'Mid', val: 40 }, { label: 'Treb', val: 65 }, { label: 'Pres', val: 50 }] },
+            { id: 'lib_cab_2x12', category: 'amp', type: 'cab', name: '2x12 Open Back', color: '#222222', knobs: [{ label: 'Mic Dist', val: 30 }, { label: 'High Cut', val: 70 }] }
         ];
 
-        let nodes = {}; 
-        let wires = []; 
+        let nodes = {};
+        let wires = [];
         let currentFilter = 'all';
-        
+
         // --- OFFLINE STORAGE ---
         let appData = null;
         let currentFileId = "file_0";
@@ -358,20 +979,20 @@
                         };
                     }
                 }
-                
+
                 // Set default tone in File 0, Preset 0
-                appData.files["file_0"].presets["preset_0"] = { 
-                    name: "02 - Screaming Lead", 
+                appData.files["file_0"].presets["preset_0"] = {
+                    name: "02 - Screaming Lead",
                     nodes: {
                         "global_in": { instanceId: "global_in", type: "io_in", x: -120, y: 175 },
-                        "p1": {...pedalLibraryData.find(p=>p.id==='lib_ts'), instanceId: 'p1', active: true, x: 50, y: 100},
-                        "p2": {...pedalLibraryData.find(p=>p.id==='lib_amp_lead'), instanceId: 'p2', active: true, x: 350, y: 100},
-                        "p3": {...pedalLibraryData.find(p=>p.id==='lib_rv_hall'), instanceId: 'p3', active: true, x: 650, y: 100},
+                        "p1": { ...pedalLibraryData.find(p => p.id === 'lib_ts'), instanceId: 'p1', active: true, x: 50, y: 100 },
+                        "p2": { ...pedalLibraryData.find(p => p.id === 'lib_amp_lead'), instanceId: 'p2', active: true, x: 350, y: 100 },
+                        "p3": { ...pedalLibraryData.find(p => p.id === 'lib_rv_hall'), instanceId: 'p3', active: true, x: 650, y: 100 },
                         "global_out": { instanceId: "global_out", type: "io_out", x: 900, y: 175 }
                     },
-                    wires: [{from: 'global_in', to: 'p1'}, {from: 'p1', to: 'p2'}, {from: 'p2', to: 'p3'}, {from: 'p3', to: 'global_out'}]
+                    wires: [{ from: 'global_in', to: 'p1' }, { from: 'p1', to: 'p2' }, { from: 'p2', to: 'p3' }, { from: 'p3', to: 'global_out' }]
                 };
-                
+
                 localStorage.setItem('pedalboard_data', JSON.stringify(appData));
             }
         }
@@ -389,32 +1010,32 @@
 
         // --- PRESET MANAGEMENT ---
         function updateFileDropdown() {
-            const fileSel = document.getElementById('fileSelect'); 
-            if(fileSel) {
+            const fileSel = document.getElementById('fileSelect');
+            if (fileSel) {
                 fileSel.innerHTML = '';
                 for (const [id, file] of Object.entries(appData.files)) {
                     const option = document.createElement('option'); option.value = id; option.textContent = file.name;
-                    if(id === currentFileId) option.selected = true; fileSel.appendChild(option);
+                    if (id === currentFileId) option.selected = true; fileSel.appendChild(option);
                 }
             }
             updatePresetDropdown();
         }
 
         function updatePresetDropdown() {
-            for(let i=0; i<4; i++) {
-                const btn = document.getElementById('btn-preset_'+i);
-                if(btn) {
+            for (let i = 0; i < 4; i++) {
+                const btn = document.getElementById('btn-preset_' + i);
+                if (btn) {
                     btn.classList.remove('active');
-                    if(`preset_${i}` === currentPresetId) btn.classList.add('active');
+                    if (`preset_${i}` === currentPresetId) btn.classList.add('active');
                 }
             }
         }
 
-        function saveCurrentState() { 
-            appData.files[currentFileId].presets[currentPresetId].nodes = JSON.parse(JSON.stringify(nodes)); 
-            appData.files[currentFileId].presets[currentPresetId].wires = JSON.parse(JSON.stringify(wires)); 
+        function saveCurrentState() {
+            appData.files[currentFileId].presets[currentPresetId].nodes = JSON.parse(JSON.stringify(nodes));
+            appData.files[currentFileId].presets[currentPresetId].wires = JSON.parse(JSON.stringify(wires));
             localStorage.setItem('pedalboard_data', JSON.stringify(appData));
-            sendJSONtoESP32(); 
+            sendJSONtoESP32();
         }
 
         function loadFile(fileId) {
@@ -424,35 +1045,36 @@
             loadCurrentPreset();
         }
 
-        function loadPreset(presetId) { 
-            currentPresetId = presetId; 
+        function loadPreset(presetId) {
+            currentPresetId = presetId;
+            updatePresetDropdown();
             loadCurrentPreset();
         }
 
         function loadCurrentPreset() {
             const preset = appData.files[currentFileId].presets[currentPresetId];
-            nodes = JSON.parse(JSON.stringify(preset.nodes)); 
-            wires = JSON.parse(JSON.stringify(preset.wires)); 
-            
+            nodes = JSON.parse(JSON.stringify(preset.nodes));
+            wires = JSON.parse(JSON.stringify(preset.wires));
+
             // Migration: Ensure global IO nodes exist
             if (!nodes["global_in"]) nodes["global_in"] = { instanceId: "global_in", type: "io_in", x: -120, y: 200 };
             if (!nodes["global_out"]) nodes["global_out"] = { instanceId: "global_out", type: "io_out", x: 800, y: 200 };
 
-            renderCanvas(); 
+            renderCanvas();
         }
 
-        function renameCurrentPreset() { 
+        function renameCurrentPreset() {
             const preset = appData.files[currentFileId].presets[currentPresetId];
-            const newName = prompt("Rename Preset:", preset.name); 
-            if(newName) { 
-                preset.name = newName; 
+            const newName = prompt("Rename Preset:", preset.name);
+            if (newName) {
+                preset.name = newName;
                 saveCurrentState();
-                updatePresetDropdown(); 
-            } 
+                updatePresetDropdown();
+            }
         }
 
         function resetCurrentPreset() {
-            if(confirm("Reset this preset to empty?")) {
+            if (confirm("Reset this preset to empty?")) {
                 nodes = {
                     "global_in": { instanceId: "global_in", type: "io_in", x: -120, y: 200 },
                     "global_out": { instanceId: "global_out", type: "io_out", x: 800, y: 200 }
@@ -479,14 +1101,14 @@
                 const item = document.createElement('div');
                 item.classList.add('library-item'); item.style.setProperty('--pedal-color', pedal.color);
                 item.setAttribute('draggable', true); item.dataset.templateId = pedal.id;
-                
+
                 let graphicHTML = '';
                 if (pedal.type === 'stomp') graphicHTML = `<div class="mini-stomp"></div>`;
                 else if (pedal.type === 'amp') graphicHTML = `<div class="mini-amp"><div class="mini-amp-panel"></div><div class="mini-amp-grill"></div></div>`;
                 else if (pedal.type === 'cab') graphicHTML = `<div class="mini-cab"></div>`;
-                
+
                 item.innerHTML = `<div class="lib-graphic">${graphicHTML}</div><div class="library-item-name">${pedal.name}</div>`;
-                
+
                 // DESKTOP MOUSE DRAG
                 item.addEventListener('dragstart', e => { e.dataTransfer.setData('templateId', pedal.id); item.style.opacity = '0.5'; });
                 item.addEventListener('dragend', () => item.style.opacity = '1');
@@ -497,7 +1119,7 @@
                     item.dataset.startX = touch.clientX;
                     item.dataset.startY = touch.clientY;
                     item.dataset.isDragging = 'false';
-                }, {passive: true});
+                }, { passive: true });
 
                 item.addEventListener('touchmove', e => {
                     if (!item.dataset.startX) return;
@@ -521,37 +1143,37 @@
 
                     // If dragging, move the ghost and stop background scrolling
                     if (item.dataset.isDragging === 'true') {
-                        e.preventDefault(); 
+                        e.preventDefault();
                         if (libGhost) {
                             libGhost.style.left = (touch.clientX - libGhost.offsetWidth / 2) + 'px';
                             libGhost.style.top = (touch.clientY - libGhost.offsetHeight / 2) + 'px';
                         }
                     }
-                }, {passive: false});
+                }, { passive: false });
 
                 item.addEventListener('touchend', e => {
                     if (item.dataset.isDragging === 'true') {
                         e.preventDefault(); // Stop click event
                         if (libGhost) { libGhost.remove(); libGhost = null; }
-                        
+
                         const touch = e.changedTouches[0];
                         const dockRect = document.getElementById('library-dock').getBoundingClientRect();
                         const rect = viewport.getBoundingClientRect();
-                        
+
                         // Check if dropped inside canvas (above the library UI)
                         if (touch.clientY < dockRect.top) {
-                            const canvasX = (touch.clientX - rect.left - panX) / scale - 110; 
+                            const canvasX = (touch.clientX - rect.left - panX) / scale - 110;
                             const canvasY = (touch.clientY - rect.top - panY) / scale - 175;
-                            
+
                             const newId = 'pedal_' + Date.now();
                             nodes[newId] = JSON.parse(JSON.stringify(pedal));
                             nodes[newId].instanceId = newId;
                             nodes[newId].active = true;
                             nodes[newId].x = canvasX;
                             nodes[newId].y = canvasY;
-                            
+
                             saveCurrentState(); renderCanvas();
-                            toggleLibrary(); 
+                            toggleLibrary();
                         }
                     }
                     item.dataset.startX = '';
@@ -563,20 +1185,20 @@
                     if (item.dataset.isDragging === 'true') return; // Ignore if it was a drag
                     const rect = viewport.getBoundingClientRect();
                     // Center of screen
-                    const canvasX = (rect.width/2 - panX) / scale - 110; 
-                    const canvasY = (rect.height/2 - panY) / scale - 175;
-                    
+                    const canvasX = (rect.width / 2 - panX) / scale - 110;
+                    const canvasY = (rect.height / 2 - panY) / scale - 175;
+
                     const newId = 'pedal_' + Date.now();
                     nodes[newId] = JSON.parse(JSON.stringify(pedal));
                     nodes[newId].instanceId = newId;
                     nodes[newId].active = true;
                     nodes[newId].x = canvasX;
                     nodes[newId].y = canvasY;
-                    
+
                     saveCurrentState(); renderCanvas();
                     toggleLibrary(); // Auto hide library after pick
                 });
-                
+
                 list.appendChild(item);
             });
         }
@@ -591,12 +1213,12 @@
         function updateCaseSize() {
             const size = document.getElementById('case-size').value;
             const board = document.getElementById('board-case');
-            if(size === 'infinite') { board.style.display = 'none'; }
+            if (size === 'infinite') { board.style.display = 'none'; }
             else {
                 board.style.display = 'block';
-                if(size === 'nano') { board.style.width = '400px'; board.style.height = '400px'; }
-                if(size === 'classic') { board.style.width = '1000px'; board.style.height = '500px'; }
-                if(size === 'grande') { board.style.width = '1600px'; board.style.height = '600px'; }
+                if (size === 'nano') { board.style.width = '400px'; board.style.height = '400px'; }
+                if (size === 'classic') { board.style.width = '1000px'; board.style.height = '500px'; }
+                if (size === 'grande') { board.style.width = '1600px'; board.style.height = '600px'; }
             }
         }
 
@@ -609,7 +1231,7 @@
         function renderCanvas() {
             const container = document.getElementById('nodes-container');
             container.innerHTML = '';
-            
+
             Object.values(nodes).forEach(pedal => {
                 const card = document.createElement('div');
                 card.style.left = pedal.x + 'px'; card.style.top = pedal.y + 'px';
@@ -619,14 +1241,14 @@
                     card.dataset.type = pedal.type;
                     card.id = pedal.instanceId;
                     card.classList.add('active'); // Always looks active
-                    
+
                     const isInput = pedal.type === 'io_in';
                     card.style.setProperty('--pedal-color', isInput ? '#2c3e50' : '#8e44ad');
                     card.style.width = '140px';
                     card.style.height = '180px';
                     card.style.justifyContent = 'space-between';
-                    
-                    const jackHTML = isInput ? 
+
+                    const jackHTML = isInput ?
                         `<div class="jack-hitbox right" data-node="${pedal.instanceId}" data-type="out"><div class="jack disconnected" id="jack-out-${pedal.instanceId}"></div></div>` :
                         `<div class="jack-hitbox left" data-node="${pedal.instanceId}" data-type="in"><div class="jack disconnected" id="jack-in-${pedal.instanceId}"></div></div>`;
 
@@ -721,7 +1343,7 @@
             // Touch and Mouse for wiring
             document.querySelectorAll('.jack-hitbox').forEach(jack => {
                 jack.addEventListener('mousedown', startWiring);
-                jack.addEventListener('touchstart', startWiring, {passive: false});
+                jack.addEventListener('touchstart', startWiring, { passive: false });
             });
 
             drawWires();
@@ -729,13 +1351,13 @@
 
         // --- CANVAS PAN & ZOOM LOGIC (MOUSE + TOUCH) ---
         function updateTransform() { surface.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`; drawWires(); }
-        
+
         viewport.addEventListener('wheel', (e) => {
             e.preventDefault();
             const sensitivity = e.ctrlKey ? 0.01 : 0.002;
             let newScale = scale * (1 - e.deltaY * sensitivity);
-            newScale = Math.min(Math.max(0.15, newScale), 3); 
-            
+            newScale = Math.min(Math.max(0.15, newScale), 3);
+
             const rect = viewport.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
@@ -746,7 +1368,7 @@
 
         // Touch Pan & Pinch Zoom
         viewport.addEventListener('touchstart', e => {
-            if(e.touches.length === 2) {
+            if (e.touches.length === 2) {
                 initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 initialScale = scale;
             } else if (e.touches.length === 1) {
@@ -755,15 +1377,15 @@
                     startPanX = e.touches[0].clientX - panX; startPanY = e.touches[0].clientY - panY;
                 }
             }
-        }, {passive: false});
+        }, { passive: false });
 
         viewport.addEventListener('touchmove', e => {
-            if(e.touches.length === 2 && initialPinchDist) {
+            if (e.touches.length === 2 && initialPinchDist) {
                 e.preventDefault();
                 const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 let newScale = initialScale * (dist / initialPinchDist);
                 newScale = Math.min(Math.max(0.15, newScale), 3);
-                
+
                 // Simple center zoom for touch
                 const rect = viewport.getBoundingClientRect();
                 const centerX = rect.width / 2; const centerY = rect.height / 2;
@@ -774,14 +1396,14 @@
                 e.preventDefault();
                 panX = e.touches[0].clientX - startPanX; panY = e.touches[0].clientY - startPanY; updateTransform();
             }
-        }, {passive: false});
+        }, { passive: false });
 
         viewport.addEventListener('touchend', () => { isPanning = false; initialPinchDist = null; });
 
         // Mouse Pan (Spacebar or Middle Click)
         let isSpacebarDown = false;
-        window.addEventListener('keydown', e => { if(e.code === 'Space' && document.activeElement.tagName !== 'INPUT') { isSpacebarDown = true; viewport.style.cursor = 'grab'; e.preventDefault(); } });
-        window.addEventListener('keyup', e => { if(e.code === 'Space') { isSpacebarDown = false; viewport.style.cursor = isPanning ? 'grabbing' : 'default'; } });
+        window.addEventListener('keydown', e => { if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') { isSpacebarDown = true; viewport.style.cursor = 'grab'; e.preventDefault(); } });
+        window.addEventListener('keyup', e => { if (e.code === 'Space') { isSpacebarDown = false; viewport.style.cursor = isPanning ? 'grabbing' : 'default'; } });
         viewport.addEventListener('mousedown', (e) => {
             if (isSpacebarDown || e.button === 1 || e.target === viewport || e.target === surface || e.target.id === 'board-case' || e.target.id === 'wire-layer') {
                 isPanning = true; startPanX = e.clientX - panX; startPanY = e.clientY - panY; viewport.style.cursor = 'grabbing';
@@ -795,19 +1417,19 @@
         viewport.addEventListener('drop', e => {
             e.preventDefault();
             const templateId = e.dataTransfer.getData('templateId');
-            if(templateId) {
+            if (templateId) {
                 const template = pedalLibraryData.find(p => p.id === templateId);
                 const rect = viewport.getBoundingClientRect();
-                const canvasX = (e.clientX - rect.left - panX) / scale - 110; 
+                const canvasX = (e.clientX - rect.left - panX) / scale - 110;
                 const canvasY = (e.clientY - rect.top - panY) / scale - 175;
-                
+
                 const newId = 'pedal_' + Date.now();
                 nodes[newId] = JSON.parse(JSON.stringify(template));
                 nodes[newId].instanceId = newId;
                 nodes[newId].active = true;
                 nodes[newId].x = canvasX;
                 nodes[newId].y = canvasY;
-                
+
                 saveCurrentState(); renderCanvas();
                 toggleLibrary(); // Auto hide library on desktop too!
             }
@@ -821,7 +1443,7 @@
                 const startDrag = (clientX, clientY) => {
                     card.classList.add('dragging');
                     const initialNodeX = nodes[nodeId].x; const initialNodeY = nodes[nodeId].y;
-                    return {startX: clientX, startY: clientY, initX: initialNodeX, initY: initialNodeY};
+                    return { startX: clientX, startY: clientY, initX: initialNodeX, initY: initialNodeY };
                 };
 
                 // MOUSE
@@ -841,8 +1463,8 @@
                     let d = startDrag(e.touches[0].clientX, e.touches[0].clientY);
                     const onDrag = (ev) => { ev.preventDefault(); nodes[nodeId].x = d.initX + (ev.touches[0].clientX - d.startX) / scale; nodes[nodeId].y = d.initY + (ev.touches[0].clientY - d.startY) / scale; card.style.left = nodes[nodeId].x + 'px'; card.style.top = nodes[nodeId].y + 'px'; drawWires(); }
                     const onEnd = () => { card.classList.remove('dragging'); document.removeEventListener('touchmove', onDrag); document.removeEventListener('touchend', onEnd); saveCurrentState(); }
-                    document.addEventListener('touchmove', onDrag, {passive: false}); document.addEventListener('touchend', onEnd);
-                }, {passive: false});
+                    document.addEventListener('touchmove', onDrag, { passive: false }); document.addEventListener('touchend', onEnd);
+                }, { passive: false });
             });
         }
 
@@ -854,17 +1476,17 @@
 
         function startWiring(e) {
             e.stopPropagation();
-            if(e.type === 'mousedown' && e.button !== 0) return;
+            if (e.type === 'mousedown' && e.button !== 0) return;
             const jack = e.target.closest('.jack-hitbox');
-            if(!jack) return; 
-            
-            if(jack.dataset.type === 'out') {
+            if (!jack) return;
+
+            if (jack.dataset.type === 'out') {
                 isWiring = true; wireStartNode = jack.dataset.node;
                 tempWire.style.display = 'block';
-                updateTempWire(e); 
+                updateTempWire(e);
                 window.addEventListener('mousemove', updateTempWire);
-                window.addEventListener('touchmove', updateTempWire, {passive: false});
-            } 
+                window.addEventListener('touchmove', updateTempWire, { passive: false });
+            }
             else if (jack.dataset.type === 'in') {
                 // DELETE WIRE
                 const nodeId = jack.dataset.node;
@@ -872,32 +1494,32 @@
                 if (existingWireIndex !== -1) { wires.splice(existingWireIndex, 1); drawWires(); saveCurrentState(); }
             }
         }
-        
+
         function updateTempWire(e) {
-            if(!isWiring) return;
-            if(e.type === 'touchmove') e.preventDefault();
+            if (!isWiring) return;
+            if (e.type === 'touchmove') e.preventDefault();
             const startJack = document.querySelector(`.jack-hitbox.right[data-node="${wireStartNode}"]`);
-            if(!startJack) return;
-            
+            if (!startJack) return;
+
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
             const sRect = surface.getBoundingClientRect();
             const jRect = startJack.getBoundingClientRect();
-            
-            const startX = (jRect.left + jRect.width/2 - sRect.left) / scale;
-            const startY = (jRect.top + jRect.height/2 - sRect.top) / scale;
+
+            const startX = (jRect.left + jRect.width / 2 - sRect.left) / scale;
+            const startY = (jRect.top + jRect.height / 2 - sRect.top) / scale;
             const endX = (clientX - sRect.left) / scale;
             const endY = (clientY - sRect.top) / scale;
-            
-            const cpOffset = Math.abs(endX - startX) * 0.5 + 50; 
+
+            const cpOffset = Math.abs(endX - startX) * 0.5 + 50;
             tempWire.setAttribute('d', `M ${startX} ${startY} C ${startX + cpOffset} ${startY}, ${endX - cpOffset} ${endY}, ${endX} ${endY}`);
         }
 
         function endWiring(e) {
-            if(!isWiring) return;
+            if (!isWiring) return;
             if (e && e.stopPropagation) e.stopPropagation();
-            
+
             const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
             const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
 
@@ -908,10 +1530,10 @@
             // MAGNETIC SNAP
             if (!jack) {
                 const inJacks = document.querySelectorAll('.jack-hitbox.left');
-                let minDistance = 60; 
+                let minDistance = 60;
                 inJacks.forEach(j => {
                     const rect = j.getBoundingClientRect();
-                    const dist = Math.hypot(clientX - (rect.left + rect.width/2), clientY - (rect.top + rect.height/2));
+                    const dist = Math.hypot(clientX - (rect.left + rect.width / 2), clientY - (rect.top + rect.height / 2));
                     if (dist < minDistance) { minDistance = dist; jack = j; }
                 });
             }
@@ -921,7 +1543,7 @@
                 wires.push({ from: wireStartNode, to: jack.dataset.node });
                 saveCurrentState();
             }
-            
+
             isWiring = false; wireStartNode = null; tempWire.style.display = 'none';
             window.removeEventListener('mousemove', updateTempWire);
             window.removeEventListener('touchmove', updateTempWire);
@@ -948,12 +1570,12 @@
                     if (!el) return null;
                     const rect = el.getBoundingClientRect();
                     const sRect = surface.getBoundingClientRect();
-                    return { x: (rect.left + rect.width/2 - sRect.left)/scale, y: (rect.top + rect.height/2 - sRect.top)/scale };
+                    return { x: (rect.left + rect.width / 2 - sRect.left) / scale, y: (rect.top + rect.height / 2 - sRect.top) / scale };
                 };
-                
+
                 const fromCoords = getCoords(`jack-out-${wire.from}`);
                 const toCoords = getCoords(`jack-in-${wire.to}`);
-                
+
                 if (!fromCoords || !toCoords) return;
 
                 const startX = fromCoords.x; const startY = fromCoords.y;
@@ -961,15 +1583,15 @@
 
                 const cpOffset = Math.abs(endX - startX) * 0.5 + 50;
                 const pathD = `M ${startX} ${startY} C ${startX + cpOffset} ${startY}, ${endX - cpOffset} ${endY}, ${endX} ${endY}`;
-                
+
                 const pathOuter = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 pathOuter.setAttribute('d', pathD); pathOuter.setAttribute('class', 'wire-path');
-                
+
                 // Click OR Tap to delete wire
                 const deleteWire = (e) => { e.stopPropagation(); wires.splice(index, 1); saveCurrentState(); drawWires(); };
                 pathOuter.addEventListener('click', deleteWire);
-                pathOuter.addEventListener('touchstart', deleteWire, {passive: false});
-                
+                pathOuter.addEventListener('touchstart', deleteWire, { passive: false });
+
                 const pathInner = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 pathInner.setAttribute('d', pathD); pathInner.setAttribute('class', 'wire-path-inner');
 
@@ -986,20 +1608,20 @@
         // --- HELPER FUNCTIONS ---
         function toggleNode(id) { nodes[id].active = !nodes[id].active; saveCurrentState(); renderCanvas(); }
         function deleteNode(id) { delete nodes[id]; wires = wires.filter(w => w.from !== id && w.to !== id); saveCurrentState(); renderCanvas(); }
-        
+
         function setupKnobs(pedal) {
             pedal.knobs.forEach((k, i) => {
                 const el = document.getElementById(`knob-${pedal.instanceId}-${i}`);
                 const valEl = document.getElementById(`val-${pedal.instanceId}-${i}`);
-                if(!el) return;
+                if (!el) return;
                 let dragY = 0, startV = 0, dragging = false;
-                
+
                 const startDrag = (y) => { dragging = true; dragY = y; startV = k.val; };
                 const moveDrag = (y) => {
-                    if(!dragging) return;
-                    let v = Math.max(0, Math.min(100, startV + (dragY - y)*0.5));
+                    if (!dragging) return;
+                    let v = Math.max(0, Math.min(100, startV + (dragY - y) * 0.5));
                     nodes[pedal.instanceId].knobs[i].val = v;
-                    el.style.setProperty('--rotation', `${(v/100*270)-135}deg`);
+                    el.style.setProperty('--rotation', `${(v / 100 * 270) - 135}deg`);
                     valEl.textContent = Math.round(v); valEl.style.display = 'block';
                 };
                 const endDrag = () => { dragging = false; valEl.style.display = ''; saveCurrentState(); };
@@ -1007,21 +1629,22 @@
                 // Mouse
                 el.addEventListener('mousedown', e => { e.stopPropagation(); startDrag(e.clientY); document.addEventListener('mousemove', mMove); document.addEventListener('mouseup', mUp); });
                 const mMove = (e) => moveDrag(e.clientY); const mUp = () => { endDrag(); document.removeEventListener('mousemove', mMove); document.removeEventListener('mouseup', mUp); };
-                
+
                 // Touch
-                el.addEventListener('touchstart', e => { e.stopPropagation(); e.preventDefault(); startDrag(e.touches[0].clientY); document.addEventListener('touchmove', tMove, {passive:false}); document.addEventListener('touchend', tUp); }, {passive:false});
+                el.addEventListener('touchstart', e => { e.stopPropagation(); e.preventDefault(); startDrag(e.touches[0].clientY); document.addEventListener('touchmove', tMove, { passive: false }); document.addEventListener('touchend', tUp); }, { passive: false });
                 const tMove = (e) => { e.preventDefault(); moveDrag(e.touches[0].clientY); }; const tUp = () => { endDrag(); document.removeEventListener('touchmove', tMove); document.removeEventListener('touchend', tUp); };
             });
         }
 
         // --- INIT ---
-        document.addEventListener('DOMContentLoaded', () => { 
+        document.addEventListener('DOMContentLoaded', () => {
             initStorage();
-            updateFileDropdown(); 
+            updateFileDropdown();
             loadCurrentPreset(); // Calls renderCanvas() and drawWires() internally
-            renderLibrary(); 
-            updateTransform(); 
+            renderLibrary();
+            updateTransform();
         });
     </script>
 </body>
+
 </html>
