@@ -57,6 +57,8 @@
             pointer-events: auto; transition: width 0.3s, height 0.3s;
             display: none; 
         }
+        
+        .empty-board-msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-dim); font-size: 18px; pointer-events: none; background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 8px;}
 
         /* --- SVG WIRES --- */
         #wire-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 1; }
@@ -66,6 +68,25 @@
         
         .wire-temp { fill: none; stroke: var(--accent-green); stroke-width: 8; stroke-dasharray: 10; animation: dash 1s linear infinite; pointer-events: none;}
         @keyframes dash { to { stroke-dashoffset: -20; } }
+
+        /* =========================================
+           I/O NODES (TRIGGER NODES)
+           ========================================= */
+        .io-node {
+            width: 80px; height: 80px; border-radius: 50%;
+            position: absolute; 
+            background: #111;
+            border: 4px solid var(--accent-green);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.2), inset 0 5px 10px rgba(0,0,0,0.9);
+            color: #fff; font-weight: 900; font-size: 24px; z-index: 2; pointer-events: auto;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            display: flex; align-items: center; justify-content: center; letter-spacing: 2px;
+        }
+        .io-node.dragging { z-index: 100; opacity: 0.9; box-shadow: 0 20px 40px rgba(0,0,0,0.9); cursor: grabbing !important; }
+        
+        .io-node .jack-hitbox.right { right: -15px; }
+        .io-node .jack-hitbox.left { left: -15px; }
+
 
         /* =========================================
            3D PEDAL CARDS
@@ -228,6 +249,7 @@
             </svg>
             <div id="nodes-container"></div>
         </div>
+        <div class="empty-board-msg" id="empty-msg" style="display: none;">Add pedals from library using the + button!</div>
     </div>
 
     <!-- FLOATING ADD BUTTON -->
@@ -280,16 +302,27 @@
         let nodes = {}; 
         let wires = []; 
         let currentFilter = 'all';
+
+        // --- PRESET SYSTEM LOGIC WITH TRIGGER I/O NODES ---
         let presets = {
-            "preset_0": { name: "01 - Empty Canvas", nodes: {}, wires: [] },
+            "preset_0": { 
+                name: "01 - Empty Canvas", 
+                nodes: {
+                    "in_node": { instanceId: 'in_node', type: 'io', ioType: 'guitar', name: 'Guitar In', x: -100, y: 235 },
+                    "out_node": { instanceId: 'out_node', type: 'io', ioType: 'speaker', name: 'Amp / PA', x: 400, y: 235 }
+                }, 
+                wires: [] 
+            },
             "preset_1": { 
                 name: "02 - Screaming Lead", 
                 nodes: {
+                    "in_node": { instanceId: 'in_node', type: 'io', ioType: 'guitar', name: 'Guitar In', x: -200, y: 235 },
                     "p1": {...pedalLibraryData.find(p=>p.id==='lib_ts'), instanceId: 'p1', active: true, x: 50, y: 100},
                     "p2": {...pedalLibraryData.find(p=>p.id==='lib_amp_lead'), instanceId: 'p2', active: true, x: 350, y: 100},
-                    "p3": {...pedalLibraryData.find(p=>p.id==='lib_rv_hall'), instanceId: 'p3', active: true, x: 650, y: 100}
+                    "p3": {...pedalLibraryData.find(p=>p.id==='lib_rv_hall'), instanceId: 'p3', active: true, x: 650, y: 100},
+                    "out_node": { instanceId: 'out_node', type: 'io', ioType: 'speaker', name: 'Amp / PA', x: 950, y: 235 }
                 },
-                wires: [{from: 'p1', to: 'p2'}, {from: 'p2', to: 'p3'}]
+                wires: [{from: 'in_node', to: 'p1'}, {from: 'p1', to: 'p2'}, {from: 'p2', to: 'p3'}, {from: 'p3', to: 'out_node'}]
             }
         };
         let currentPresetId = "preset_0";
@@ -467,12 +500,34 @@
             const container = document.getElementById('nodes-container');
             container.innerHTML = '';
             
+            // Check if there are pedals other than IO nodes
+            const emptyMsg = document.getElementById('empty-msg');
+            emptyMsg.style.display = Object.keys(nodes).length <= 2 ? 'block' : 'none';
+            
             Object.values(nodes).forEach(pedal => {
                 const card = document.createElement('div');
-                card.classList.add('pedal-card'); card.dataset.type = pedal.type; card.id = pedal.instanceId;
+                card.id = pedal.instanceId;
+                card.dataset.type = pedal.type; 
+                card.style.left = pedal.x + 'px'; card.style.top = pedal.y + 'px';
+
+                // Render Input/Output Trigger Nodes differently
+                if (pedal.type === 'io') {
+                    card.className = 'io-node drag-handle';
+                    let label = pedal.ioType === 'guitar' ? 'IN' : 'OUT';
+                    let jacksHTML = pedal.ioType === 'guitar' 
+                        ? `<div class="jack-hitbox right" data-node="${pedal.instanceId}" data-type="out"><div class="jack"></div></div>`
+                        : `<div class="jack-hitbox left" data-node="${pedal.instanceId}" data-type="in"><div class="jack"></div></div>`;
+                        
+                    card.innerHTML = jacksHTML + `<span>${label}</span>`;
+                    container.appendChild(card);
+                    setupNodeDragging(card, pedal.instanceId);
+                    return; // Skip normal pedal rendering
+                }
+
+                // Normal Pedals
+                card.className = 'pedal-card';
                 if (pedal.active) card.classList.add('active');
                 card.style.setProperty('--pedal-color', pedal.color);
-                card.style.left = pedal.x + 'px'; card.style.top = pedal.y + 'px';
 
                 const jacksHTML = `
                     <div class="jack-hitbox left" data-node="${pedal.instanceId}" data-type="in"><div class="jack"></div></div>
@@ -636,7 +691,8 @@
 
         // --- NODE (PEDAL) DRAGGING (MOUSE + TOUCH) ---
         function setupNodeDragging(card, nodeId) {
-            const handles = card.querySelectorAll('.drag-handle');
+            // Apply dragging to entire IO node or specific drag-handles for pedals
+            const handles = card.classList.contains('io-node') ? [card] : card.querySelectorAll('.drag-handle');
             handles.forEach(handle => {
                 const startDrag = (clientX, clientY) => {
                     card.classList.add('dragging');
@@ -756,10 +812,15 @@
                 const nodeFrom = nodes[wire.from]; const nodeTo = nodes[wire.to];
                 if(!nodeFrom || !nodeTo) return;
 
-                const startX = nodeFrom.x + 220 + 6;
-                const startY = nodeFrom.y + (nodes[wire.from].type === 'amp' ? 175 : 175); 
+                // Adjust positioning dynamically based on node type
+                const startWidth = nodeFrom.type === 'io' ? 80 : 220;
+                const startHeight = nodeFrom.type === 'io' ? 80 : 350;
+                const endHeight = nodeTo.type === 'io' ? 80 : 350;
+
+                const startX = nodeFrom.x + startWidth + 6;
+                const startY = nodeFrom.y + (startHeight / 2); 
                 const endX = nodeTo.x - 6;
-                const endY = nodeTo.y + (nodes[wire.to].type === 'amp' ? 175 : 175);
+                const endY = nodeTo.y + (endHeight / 2);
 
                 const cpOffset = Math.abs(endX - startX) * 0.5 + 50;
                 const pathD = `M ${startX} ${startY} C ${startX + cpOffset} ${startY}, ${endX - cpOffset} ${endY}, ${endX} ${endY}`;
@@ -780,7 +841,11 @@
 
         // --- HELPER FUNCTIONS ---
         function toggleNode(id) { nodes[id].active = !nodes[id].active; saveCurrentState(); renderCanvas(); }
-        function deleteNode(id) { delete nodes[id]; wires = wires.filter(w => w.from !== id && w.to !== id); saveCurrentState(); renderCanvas(); }
+        
+        function deleteNode(id) { 
+            if (nodes[id].type === 'io') return; // Cannot delete Guitar/Amp trigger nodes
+            delete nodes[id]; wires = wires.filter(w => w.from !== id && w.to !== id); saveCurrentState(); renderCanvas(); 
+        }
         
         function setupKnobs(pedal) {
             pedal.knobs.forEach((k, i) => {
