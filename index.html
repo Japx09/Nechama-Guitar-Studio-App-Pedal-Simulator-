@@ -862,6 +862,8 @@
             <select id="fileSelect" class="preset-dropdown" onchange="loadFile(this.value)"></select>
             <button class="btn-preset btn-rename" onclick="renameCurrentPreset()">Rename Preset</button>
             <button class="btn-preset btn-delete" onclick="resetCurrentPreset()">Clear</button>
+            <button id="btn-audio-engine" class="btn-preset" style="background: linear-gradient(to bottom, #4CAF50, #2E7D32);" onclick="initAudioEngine()">▶ Start Audio</button>
+            <select id="audioInputSelect" class="preset-dropdown" style="display:none; max-width: 150px; text-overflow: ellipsis;" onchange="changeAudioInput(this.value)"></select>
         </div>
         <div style="font-size: 14px; color: var(--accent-green); font-weight: bold; margin-left: auto;">ESP32 DSP: <span
                 style="color:#fff;">LIVE SYNC</span></div>
@@ -930,7 +932,9 @@
             { id: 'lib_dd', category: 'delay', type: 'stomp', name: 'Digital Delay', color: '#4a4a4a', knobs: [{ label: 'Time', val: 40 }, { label: 'F.Back', val: 30 }, { label: 'Mix', val: 50 }] },
             { id: 'lib_rv_hall', category: 'delay', type: 'stomp', name: 'Hall Reverb', color: '#2b1b42', knobs: [{ label: 'Decay', val: 60 }, { label: 'Mix', val: 40 }, { label: 'PreDly', val: 10 }] },
             { id: 'lib_rv_spring', category: 'delay', type: 'stomp', name: 'Spring Tank', color: '#8d6e63', knobs: [{ label: 'Dwell', val: 50 }, { label: 'Mix', val: 40 }, { label: 'Tone', val: 60 }] },
+            { id: 'lib_rv_bigsky', category: 'delay', type: 'stomp', name: 'Huge Sky', color: '#1a5b7f', knobs: [{ label: 'Decay', val: 80 }, { label: 'Mix', val: 60 }, { label: 'Swell', val: 50 }, { label: 'Shimmer', val: 40 }] },
             { id: 'lib_amp_jm', category: 'amp', type: 'amp', name: 'Silver String', color: '#8c8c8c', knobs: [{ label: 'Gain', val: 30 }, { label: 'Bass', val: 60 }, { label: 'Mid', val: 40 }, { label: 'Treble', val: 70 }, { label: 'Master', val: 80 }] },
+            { id: 'lib_amp_fender', category: 'amp', type: 'amp', name: 'Fender Deluxe', color: '#1a1a1a', knobs: [{ label: 'Volume', val: 40 }, { label: 'Treble', val: 60 }, { label: 'Bass', val: 50 }, { label: 'Reverb', val: 30 }] },
             { id: 'lib_amp_lead', category: 'amp', type: 'amp', name: 'Modern Lead', color: '#0d0d0d', knobs: [{ label: 'Gain', val: 85 }, { label: 'Bass', val: 60 }, { label: 'Mid', val: 40 }, { label: 'Treb', val: 65 }, { label: 'Pres', val: 50 }] },
             { id: 'lib_cab_2x12', category: 'amp', type: 'cab', name: '2x12 Open Back', color: '#222222', knobs: [{ label: 'Mic Dist', val: 30 }, { label: 'High Cut', val: 70 }] }
         ];
@@ -1036,6 +1040,7 @@
             appData.files[currentFileId].presets[currentPresetId].wires = JSON.parse(JSON.stringify(wires));
             localStorage.setItem('pedalboard_data', JSON.stringify(appData));
             sendJSONtoESP32();
+            if (audioCtx) rebuildAudioGraph();
         }
 
         function loadFile(fileId) {
@@ -1061,6 +1066,7 @@
             if (!nodes["global_out"]) nodes["global_out"] = { instanceId: "global_out", type: "io_out", x: 800, y: 200 };
 
             renderCanvas();
+            if (audioCtx) rebuildAudioGraph();
         }
 
         function renameCurrentPreset() {
@@ -1623,6 +1629,7 @@
                     nodes[pedal.instanceId].knobs[i].val = v;
                     el.style.setProperty('--rotation', `${(v / 100 * 270) - 135}deg`);
                     valEl.textContent = Math.round(v); valEl.style.display = 'block';
+                    updateDSPParam(pedal.instanceId);
                 };
                 const endDrag = () => { dragging = false; valEl.style.display = ''; saveCurrentState(); };
 
@@ -1634,6 +1641,375 @@
                 el.addEventListener('touchstart', e => { e.stopPropagation(); e.preventDefault(); startDrag(e.touches[0].clientY); document.addEventListener('touchmove', tMove, { passive: false }); document.addEventListener('touchend', tUp); }, { passive: false });
                 const tMove = (e) => { e.preventDefault(); moveDrag(e.touches[0].clientY); }; const tUp = () => { endDrag(); document.removeEventListener('touchmove', tMove); document.removeEventListener('touchend', tUp); };
             });
+        }
+
+        // =========================================
+        // WEB AUDIO API DSP ENGINE
+        // =========================================
+        let audioCtx = null;
+        let audioInput = null;
+        let audioOutput = null;
+        let dspNodes = {};
+
+        let currentStream = null;
+
+        async function initAudioEngine(deviceId = null) {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+                }
+                
+                const constraints = {
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                        latency: 0
+                    }
+                };
+                
+                if (deviceId) {
+                    constraints.audio.deviceId = { exact: deviceId };
+                }
+
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                if (audioInput) audioInput.disconnect();
+                
+                const source = audioCtx.createMediaStreamSource(currentStream);
+                
+                // Input filter to remove DC offset and extreme low-end rumble (reduces buzz/mud)
+                const inputFilter = audioCtx.createBiquadFilter();
+                inputFilter.type = 'highpass';
+                inputFilter.frequency.value = 60;
+                source.connect(inputFilter);
+                
+                audioInput = inputFilter;
+                if (!audioOutput) audioOutput = audioCtx.destination;
+                
+                document.getElementById('btn-audio-engine').textContent = '🔊 Audio Active';
+                document.getElementById('btn-audio-engine').style.background = 'linear-gradient(to bottom, #803a3a, #541c1c)';
+                
+                if (!deviceId) {
+                    await enumerateAudioDevices();
+                }
+                
+                rebuildAudioGraph();
+            } catch (err) {
+                alert("Microphone access denied or error starting audio: " + err);
+                console.error(err);
+            }
+        }
+
+        async function enumerateAudioDevices() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const audioInputs = devices.filter(device => device.kind === 'audioinput');
+                const select = document.getElementById('audioInputSelect');
+                select.innerHTML = '';
+                
+                audioInputs.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Input ${index + 1}`;
+                    select.appendChild(option);
+                });
+                
+                if (audioInputs.length > 0) {
+                    select.style.display = 'inline-block';
+                }
+            } catch (e) {
+                console.error("Could not enumerate devices", e);
+            }
+        }
+
+        function changeAudioInput(deviceId) {
+            initAudioEngine(deviceId);
+        }
+
+        function generateImpulseResponse(duration, decay, isLush = false, attackTime = 0) {
+            if (!audioCtx) return null;
+            const length = audioCtx.sampleRate * duration;
+            const impulse = audioCtx.createBuffer(2, length, audioCtx.sampleRate);
+            const left = impulse.getChannelData(0);
+            const right = impulse.getChannelData(1);
+            
+            let lpL = 0;
+            let lpR = 0;
+            const filterCoeff = isLush ? 0.2 : 0.5; // Darker noise for lush verbs
+            const attackSamples = audioCtx.sampleRate * attackTime;
+
+            for (let i = 0; i < length; i++) {
+                let envelope = Math.pow(1 - i / length, decay);
+                
+                // Slow ambient swell/bloom attack
+                if (i < attackSamples && attackSamples > 0) {
+                    envelope *= (i / attackSamples);
+                }
+                
+                // Decorrelated stereo noise for wide image
+                const noiseL = (Math.random() * 2 - 1);
+                const noiseR = (Math.random() * 2 - 1);
+                
+                // Lowpass filter the noise
+                lpL = lpL + filterCoeff * (noiseL - lpL);
+                lpR = lpR + filterCoeff * (noiseR - lpR);
+
+                left[i] = lpL * envelope * 0.5;
+                right[i] = lpR * envelope * 0.5;
+            }
+            return impulse;
+        }
+
+        function makeDistortionCurve(amount) {
+            const k = typeof amount === 'number' ? amount : 50;
+            const n_samples = 44100;
+            const curve = new Float32Array(n_samples);
+            // Asymmetric tube-like soft clipping (tanh)
+            for (let i = 0; i < n_samples; ++i) {
+                let x = i * 2 / n_samples - 1;
+                if (x > 0) {
+                    curve[i] = Math.tanh(x * (1 + k / 10));
+                } else {
+                    curve[i] = -Math.tanh(-x * (1 + k / 15)); // Softer on negative swing
+                }
+            }
+            return curve;
+        }
+
+        function createDSPNode(pedalData) {
+            if (!audioCtx) return null;
+            const input = audioCtx.createGain();
+            const output = audioCtx.createGain();
+            let effectNode = null;
+            let subNodes = [];
+
+            const getVal = (label, defaultVal=50) => {
+                const k = pedalData.knobs ? pedalData.knobs.find(k => k.label.includes(label) || k.label === label) : null;
+                return k ? k.val : defaultVal;
+            };
+
+            const t = pedalData.id;
+
+            if (t.includes('ts') || t.includes('ds1') || t.includes('fuzz') || t.includes('klon')) {
+                effectNode = audioCtx.createWaveShaper();
+                // Drive pedals get more distortion, but smooth curve
+                effectNode.curve = makeDistortionCurve(getVal('Gain', getVal('Dist', getVal('Drive', 50))) * 5);
+                effectNode.oversample = '2x';
+                
+                const toneFilter = audioCtx.createBiquadFilter();
+                toneFilter.type = 'lowpass';
+                toneFilter.frequency.value = 500 + (getVal('Tone', getVal('Treble')) * 40);
+                
+                const levelGain = audioCtx.createGain();
+                levelGain.gain.value = getVal('Level', getVal('Volume', getVal('Output'))) / 50;
+
+                input.connect(effectNode);
+                effectNode.connect(toneFilter);
+                toneFilter.connect(levelGain);
+                levelGain.connect(output);
+                subNodes = [effectNode, toneFilter, levelGain];
+                
+            } else if (t.includes('delay') || t.includes('aqua') || t.includes('dd')) {
+                effectNode = audioCtx.createDelay(5.0);
+                effectNode.delayTime.value = getVal('Delay', getVal('Time')) / 100 * 1.5;
+                
+                const feedback = audioCtx.createGain();
+                feedback.gain.value = getVal('F.Back', 30) / 100 * 0.9;
+                
+                const mix = audioCtx.createGain();
+                mix.gain.value = getVal('Mix', getVal('Blend', 50)) / 100;
+
+                input.connect(output);
+                input.connect(effectNode);
+                effectNode.connect(feedback);
+                feedback.connect(effectNode);
+                effectNode.connect(mix);
+                mix.connect(output);
+                subNodes = [effectNode, feedback, mix];
+
+            } else if (t.includes('rv_') || t.includes('cab')) {
+                effectNode = audioCtx.createConvolver();
+                
+                let duration = 2.5;
+                let decay = getVal('Decay', getVal('Dwell')) / 10;
+                let isLush = false;
+                let attackTime = 0;
+
+                if (t.includes('cab')) {
+                    duration = 0.1;
+                    decay = 10;
+                } else if (t.includes('bigsky')) {
+                    duration = 1.0 + (getVal('Decay', 80) / 100) * 9.0; // Up to 10 seconds of decay
+                    decay = 2.0; // Slow, smooth exponential decay
+                    isLush = true;
+                    attackTime = (getVal('Swell', 50) / 100) * 2.0; // Up to 2s volume swell
+                }
+
+                effectNode.buffer = generateImpulseResponse(duration, decay, isLush, attackTime);
+                
+                if (t.includes('cab')) {
+                    const mix = audioCtx.createGain(); mix.gain.value = 1.0;
+                    input.connect(effectNode);
+                    effectNode.connect(output);
+                    subNodes = [effectNode, mix];
+                } else if (t.includes('bigsky')) {
+                    const mixDry = audioCtx.createGain();
+                    const mixWet = audioCtx.createGain();
+                    
+                    let mixVal = getVal('Mix', 50) / 100;
+                    if (mixVal <= 0.5) {
+                        mixDry.gain.value = 1.0;
+                        mixWet.gain.value = mixVal * 2.0;
+                    } else {
+                        mixDry.gain.value = 1.0 - ((mixVal - 0.5) * 2.0); // Kills dry signal for 100% ambient pad
+                        mixWet.gain.value = 1.0;
+                    }
+                    
+                    // Ambient Shimmer Path: Clean high-frequency sheen (no distortion to avoid dissonant pitch)
+                    const shimmerFilter = audioCtx.createBiquadFilter();
+                    shimmerFilter.type = 'highshelf';
+                    shimmerFilter.frequency.value = 3000;
+                    // Boost highs up to +12dB based on Shimmer knob
+                    shimmerFilter.gain.value = (getVal('Shimmer', 40) / 100) * 12;
+                    
+                    const shimmerGain = audioCtx.createGain();
+                    shimmerGain.gain.value = 1.0; 
+                    
+                    // Lush modulation (very subtle to avoid out-of-tune pitch bending)
+                    const modDelay = audioCtx.createDelay(); modDelay.delayTime.value = 0.02;
+                    const modOsc = audioCtx.createOscillator(); modOsc.frequency.value = 0.5; // Very slow
+                    const modDepth = audioCtx.createGain(); modDepth.gain.value = 0.0005; // Extremely shallow depth (0.5ms)
+                    modOsc.connect(modDepth); modDepth.connect(modDelay.delayTime); modOsc.start();
+
+                    input.connect(mixDry); // Dry path
+                    mixDry.connect(output);
+                    
+                    input.connect(effectNode); // Wet path
+                    effectNode.connect(shimmerFilter);
+                    shimmerFilter.connect(modDelay);
+                    modDelay.connect(mixWet);
+                    
+                    mixWet.connect(output);
+                    
+                    subNodes = [effectNode, mixDry, mixWet, modDelay, modOsc, modDepth, shimmerFilter, shimmerGain];
+                } else {
+                    const mix = audioCtx.createGain();
+                    mix.gain.value = getVal('Mix') / 100;
+                    input.connect(output); // Dry
+                    input.connect(effectNode);
+                    effectNode.connect(mix);
+                    mix.connect(output); // Wet
+                    subNodes = [effectNode, mix];
+                }
+                
+            } else if (t.includes('amp')) {
+                effectNode = audioCtx.createWaveShaper();
+                let driveMult = t.includes('lead') ? 4 : (t.includes('jm') ? 1.5 : 1.0);
+                effectNode.curve = makeDistortionCurve(getVal('Gain', getVal('Volume', 30)) * driveMult);
+                effectNode.oversample = '2x';
+                
+                const bass = audioCtx.createBiquadFilter(); bass.type = 'lowshelf'; bass.frequency.value = 150; bass.gain.value = (getVal('Bass') - 50) / 2;
+                const mid = audioCtx.createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 800; mid.Q.value = 1.0; mid.gain.value = (getVal('Mid', 50) - 50) / 2;
+                const treble = audioCtx.createBiquadFilter(); treble.type = 'highshelf'; treble.frequency.value = 3500; treble.gain.value = (getVal('Treble', getVal('Treb')) - 50) / 2;
+                
+                // Built-in Speaker Emulation (removes the fizzy nest of bees sound)
+                const cabFilter1 = audioCtx.createBiquadFilter(); cabFilter1.type = 'lowpass'; cabFilter1.frequency.value = 5000; cabFilter1.Q.value = 0.7;
+                const cabFilter2 = audioCtx.createBiquadFilter(); cabFilter2.type = 'lowpass'; cabFilter2.frequency.value = 6000; cabFilter2.Q.value = 0.7;
+                
+                const master = audioCtx.createGain();
+                master.gain.value = getVal('Master', 50) / 50;
+
+                input.connect(effectNode);
+                effectNode.connect(bass); bass.connect(mid); mid.connect(treble);
+                treble.connect(cabFilter1); cabFilter1.connect(cabFilter2); cabFilter2.connect(master);
+                
+                if (t.includes('fender')) {
+                    // Add built-in spring reverb for Fender
+                    const springRev = audioCtx.createConvolver();
+                    springRev.buffer = generateImpulseResponse(1.5, 4); // Spring-like
+                    
+                    const revMix = audioCtx.createGain();
+                    revMix.gain.value = getVal('Reverb', 0) / 100 * 0.8;
+                    
+                    master.connect(output); // Dry
+                    master.connect(springRev);
+                    springRev.connect(revMix);
+                    revMix.connect(output); // Wet
+                    
+                    subNodes = [effectNode, bass, mid, treble, cabFilter1, cabFilter2, master, springRev, revMix];
+                } else {
+                    master.connect(output);
+                    subNodes = [effectNode, bass, mid, treble, cabFilter1, cabFilter2, master];
+                }
+            } else {
+                input.connect(output);
+            }
+
+            return { input, output, effectNode, subNodes };
+        }
+
+        function rebuildAudioGraph() {
+            if (!audioCtx || !audioInput) return;
+
+            audioInput.disconnect();
+            for (let id in dspNodes) {
+                dspNodes[id].input.disconnect();
+                dspNodes[id].output.disconnect();
+                if (dspNodes[id].subNodes) dspNodes[id].subNodes.forEach(n => n.disconnect());
+            }
+            dspNodes = {};
+
+            for (let id in nodes) {
+                if (nodes[id].type === 'io_in' || nodes[id].type === 'io_out') continue;
+                dspNodes[id] = createDSPNode(nodes[id]);
+            }
+
+            wires.forEach(wire => {
+                const fromId = wire.from;
+                const toId = wire.to;
+
+                let source = null;
+                if (fromId === 'global_in') source = audioInput;
+                else if (dspNodes[fromId]) source = (nodes[fromId].active ? dspNodes[fromId].output : dspNodes[fromId].input);
+
+                let destination = null;
+                if (toId === 'global_out') destination = audioOutput;
+                else if (dspNodes[toId]) destination = dspNodes[toId].input;
+
+                if (source && destination) {
+                    try { source.connect(destination); } catch(e) { console.warn("Graph cycle", e); }
+                }
+            });
+        }
+
+        function updateDSPParam(pedalId) {
+            if (!audioCtx || !dspNodes[pedalId]) return;
+            const pedalData = nodes[pedalId];
+            const dsp = dspNodes[pedalId];
+            const getVal = (label, def=50) => { const k = pedalData.knobs.find(k => k.label.includes(label) || k.label===label); return k ? k.val : def; };
+            
+            if (pedalData.id.includes('ts') || pedalData.id.includes('ds1') || pedalData.id.includes('fuzz') || pedalData.id.includes('klon')) {
+                if(dsp.subNodes[0]) dsp.subNodes[0].curve = makeDistortionCurve(getVal('Gain', getVal('Dist', getVal('Drive', 50))) * 10);
+                if(dsp.subNodes[1]) dsp.subNodes[1].frequency.setTargetAtTime(500 + (getVal('Tone', getVal('Treble')) * 50), audioCtx.currentTime, 0.05);
+                if(dsp.subNodes[2]) dsp.subNodes[2].gain.setTargetAtTime(getVal('Level', getVal('Volume', getVal('Output'))) / 50, audioCtx.currentTime, 0.05);
+            } else if (pedalData.id.includes('delay') || pedalData.id.includes('aqua') || pedalData.id.includes('dd')) {
+                if(dsp.subNodes[0]) dsp.subNodes[0].delayTime.setTargetAtTime(getVal('Delay', getVal('Time')) / 100 * 1.5, audioCtx.currentTime, 0.05);
+                if(dsp.subNodes[1]) dsp.subNodes[1].gain.setTargetAtTime(getVal('F.Back', 30) / 100 * 0.9, audioCtx.currentTime, 0.05);
+                if(dsp.subNodes[2]) dsp.subNodes[2].gain.setTargetAtTime(getVal('Mix', getVal('Blend', 50)) / 100, audioCtx.currentTime, 0.05);
+            } else if (pedalData.id.includes('rv_') || pedalData.id.includes('cab')) {
+                if(dsp.subNodes[1]) dsp.subNodes[1].gain.setTargetAtTime(pedalData.id.includes('cab') ? 1.0 : (getVal('Mix') / 100), audioCtx.currentTime, 0.05);
+            } else if (pedalData.id.includes('amp')) {
+                if(dsp.subNodes[0]) dsp.subNodes[0].curve = makeDistortionCurve(getVal('Gain') * 5);
+                if(dsp.subNodes[1]) dsp.subNodes[1].gain.setTargetAtTime((getVal('Bass') - 50) / 2, audioCtx.currentTime, 0.05);
+                if(dsp.subNodes[2]) dsp.subNodes[2].gain.setTargetAtTime((getVal('Mid') - 50) / 2, audioCtx.currentTime, 0.05);
+                if(dsp.subNodes[3]) dsp.subNodes[3].gain.setTargetAtTime((getVal('Treble', getVal('Treb')) - 50) / 2, audioCtx.currentTime, 0.05);
+                if(dsp.subNodes[4]) dsp.subNodes[4].gain.setTargetAtTime(getVal('Master', 50) / 50, audioCtx.currentTime, 0.05);
+            }
         }
 
         // --- INIT ---
