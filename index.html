@@ -1685,11 +1685,28 @@
                 // Input filter to remove DC offset and extreme low-end rumble (reduces buzz/mud)
                 const inputFilter = audioCtx.createBiquadFilter();
                 inputFilter.type = 'highpass';
-                inputFilter.frequency.value = 60;
+                inputFilter.frequency.value = 80;
                 source.connect(inputFilter);
                 
                 audioInput = inputFilter;
-                if (!audioOutput) audioOutput = audioCtx.destination;
+                
+                // Master Anti-Buzz Filter (Removes digital fizz and harsh high frequencies)
+                const masterAntiBuzz = audioCtx.createBiquadFilter();
+                masterAntiBuzz.type = 'lowpass';
+                masterAntiBuzz.frequency.value = 8500; // Guitars don't need freq above this, removes pure buzz
+                
+                // Master Limiter (Prevents the audio from clipping and causing digital distortion/buzz)
+                const masterLimiter = audioCtx.createDynamicsCompressor();
+                masterLimiter.threshold.value = -2; // Start limiting just before 0dB
+                masterLimiter.knee.value = 0;
+                masterLimiter.ratio.value = 20; // Hard limiting
+                masterLimiter.attack.value = 0.002; // Very fast attack to catch spikes
+                masterLimiter.release.value = 0.1;
+                
+                masterAntiBuzz.connect(masterLimiter);
+                masterLimiter.connect(audioCtx.destination);
+                
+                if (!audioOutput) audioOutput = masterAntiBuzz;
                 
                 document.getElementById('btn-audio-engine').textContent = '🔊 Audio Active';
                 document.getElementById('btn-audio-engine').style.background = 'linear-gradient(to bottom, #803a3a, #541c1c)';
